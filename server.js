@@ -22,6 +22,11 @@ app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Legacy/alternate routes that should resolve to the player page
+app.get(['/game.html', '/game'], (_req, res) => {
+  res.redirect('/player.html');
+});
+
 const ADMIN_PASSWORD = 'admin@2026';
 
 // ── Auth Middleware ─────────────────────────────────────────────────────────────
