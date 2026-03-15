@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – Mind Maze 2048</title>
+  <meta name="description" content="Admin control panel for Mind Maze 2048 event" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="home-nav">
+    <a href="index.html" class="btn-home">🏠 Home</a>
+  </div>
+  <div class="admin-page page">
+    <h1 class="logo" style="font-size:1.6rem;">🛠 Admin Panel</h1>
+    <p class="logo-sub">Mind Maze 2048 – Event Control</p>
+
+    <!-- ═══════════ LOGIN OVERLAY ═══════════ -->
+    <div id="login-overlay" class="login-overlay">
+      <div class="glass-card login-card">
+        <h2>🔒 Admin Access</h2>
+        <p>Please enter password to continue</p>
+        <div class="input-group">
+          <input type="password" id="admin-password" placeholder="Password" />
+        </div>
+        <button class="btn btn-primary" id="login-btn">Login</button>
+        <p id="login-error" class="error-text" style="display:none;">Invalid password!</p>
+      </div>
+    </div>
+
+    <!-- ═══════════ ADMIN CONTENT ═══════════ -->
+    <div id="admin-content" style="display:none;">
+
+    <!-- ═══════════ ADMIN GRID ═══════════ -->
+    <div class="admin-grid">
+
+      <!-- Game Control -->
+      <div class="glass-card admin-card">
+        <h3>🎮 Game Control</h3>
+        <div id="game-status" class="status-indicator stopped">
+          <span class="dot"></span> Stopped
+        </div>
+        <div class="btn-group" style="margin-top:16px;">
+          <button class="btn btn-primary btn-small" id="start-btn">▶ Start Game</button>
+          <button class="btn btn-danger btn-small" id="end-btn">⏹ End Game</button>
+        </div>
+      </div>
+
+      <!-- Timer Settings -->
+      <div class="glass-card admin-card">
+        <h3>⏱ Timer Settings</h3>
+        <div class="timer-input-group">
+          <input type="number" id="timer-input" value="120" min="10" max="3600" />
+          <span style="color:var(--text-dim);">seconds</span>
+          <button class="btn btn-secondary btn-small" id="set-timer-btn">Set</button>
+        </div>
+        <div class="btn-group" style="margin-top:12px;">
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=60">60s</button>
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=120">120s</button>
+          <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=300">300s</button>
+        </div>
+        <p style="margin-top:12px; color:var(--text-dim); font-size:0.85rem;">
+          Remaining: <strong id="remaining-display">--:--</strong>
+        </p>
+      </div>
+
+      <!-- Player Count -->
+      <div class="glass-card admin-card">
+        <h3>👥 Players Joined</h3>
+        <div class="big-number" id="player-count">0</div>
+      </div>
+
+      <!-- Reset -->
+      <div class="glass-card admin-card">
+        <h3>🔄 Reset Event</h3>
+        <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:14px;">
+          Deletes all players, resets game state and leaderboard.
+        </p>
+        <button class="btn btn-danger btn-small" id="reset-btn">🗑 Reset Everything</button>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="glass-card admin-card" style="grid-column: 1 / -1;">
+        <h3>🏆 Leaderboard – Top 20</h3>
+        <table class="leaderboard-table">
+          <thead>
+            <tr><th>#</th><th>Player</th><th>Score</th></tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr><td colspan="3" style="color:var(--text-dim); text-align:center;">No scores yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Player List -->
+      <div class="glass-card admin-card" style="grid-column: 1 / -1;">
+        <h3>📋 All Players</h3>
+        <div class="player-list" id="player-list">
+          <p style="color:var(--text-dim);">No players yet</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

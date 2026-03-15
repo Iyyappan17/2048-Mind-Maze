@@ -10,11 +10,17 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.VERCEL ? path.join('/tmp', 'database.sqlite') : path.join(__dirname, 'database.sqlite');
+// For deployment platforms like Railway, set DB_PATH to a writable directory (e.g. /tmp) via env var.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'database.sqlite');
 
 // ── Middleware ──────────────────────────────────────────────────────────────────
 app.use(express.json());
-app.use(express.static(path.join(__dirname))); // serve frontend files
+app.use(express.static(path.join(__dirname, 'public'))); // serve frontend files from /public
+
+// Ensure root always serves index.html (helps with some deploy routing setups)
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const ADMIN_PASSWORD = 'admin@2026';
 
@@ -46,12 +52,18 @@ function ensureDb() {
 async function initDB() {
   const SQL = await initSqlJs();
 
+  // Ensure a writable database path exists in runtime environments (e.g. Railway /tmp)
+  const repoDbPath = path.join(__dirname, 'database.sqlite');
+  if (DB_PATH !== repoDbPath && !fs.existsSync(DB_PATH) && fs.existsSync(repoDbPath)) {
+    fs.copyFileSync(repoDbPath, DB_PATH);
+  }
+
   // Load existing DB file or create new
   let fileBuffer;
   if (fs.existsSync(DB_PATH)) {
     fileBuffer = fs.readFileSync(DB_PATH);
-  } else if (process.env.VERCEL && fs.existsSync(path.join(__dirname, 'database.sqlite'))) {
-    fileBuffer = fs.readFileSync(path.join(__dirname, 'database.sqlite'));
+  } else if (fs.existsSync(repoDbPath)) {
+    fileBuffer = fs.readFileSync(repoDbPath);
   }
 
   if (fileBuffer) {
