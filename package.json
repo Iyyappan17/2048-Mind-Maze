@@ -1,0 +1,13 @@
+{
+  "name": "mindmaze-2048",
+  "version": "1.0.0",
+  "description": "Mind Maze 2048 – College Event Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "sql.js": "^1.11.0"
+  }
+}
