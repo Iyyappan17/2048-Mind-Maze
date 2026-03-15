@@ -15,7 +15,6 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'database.sqlite');
 
 // ── Middleware ──────────────────────────────────────────────────────────────────
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // serve frontend files from /public
 
 // Ensure root always serves index.html (helps with some deploy routing setups)
 app.get('/', (_req, res) => {
@@ -26,6 +25,8 @@ app.get('/', (_req, res) => {
 app.get(['/game.html', '/game'], (_req, res) => {
   res.redirect('/player.html');
 });
+
+app.use(express.static(path.join(__dirname, 'public'))); // serve frontend files from /public
 
 const ADMIN_PASSWORD = 'admin@2026';
 
