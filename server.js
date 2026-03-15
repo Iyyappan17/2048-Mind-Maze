@@ -10,7 +10,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+const DB_PATH = process.env.VERCEL ? path.join('/tmp', 'database.sqlite') : path.join(__dirname, 'database.sqlite');
 
 // ── Middleware ──────────────────────────────────────────────────────────────────
 app.use(express.json());
@@ -29,14 +29,32 @@ function adminAuth(req, res, next) {
 }
 
 let db; // SQLite database instance
+let isDbInitialized = false;
+let dbInitPromise = null;
+
+function ensureDb() {
+  if (isDbInitialized) return Promise.resolve();
+  if (!dbInitPromise) {
+    dbInitPromise = initDB().then(() => {
+      isDbInitialized = true;
+    });
+  }
+  return dbInitPromise;
+}
 
 // ── Database Setup ─────────────────────────────────────────────────────────────
 async function initDB() {
   const SQL = await initSqlJs();
 
   // Load existing DB file or create new
+  let fileBuffer;
   if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
+    fileBuffer = fs.readFileSync(DB_PATH);
+  } else if (process.env.VERCEL && fs.existsSync(path.join(__dirname, 'database.sqlite'))) {
+    fileBuffer = fs.readFileSync(path.join(__dirname, 'database.sqlite'));
+  }
+
+  if (fileBuffer) {
     db = new SQL.Database(fileBuffer);
   } else {
     db = new SQL.Database();
@@ -113,6 +131,16 @@ function getRemainingTime(state) {
 // ═══════════════════════════════════════════════════════════════════════════════
 //   PLAYER ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
+
+app.use('/api', async (req, res, next) => {
+  try {
+    await ensureDb();
+    next();
+  } catch (err) {
+    console.error('DB Init Error:', err);
+    res.status(500).json({ error: 'Database initialization failed.' });
+  }
+});
 
 /** POST /api/join – register a new player */
 app.post('/api/join', (req, res) => {
@@ -252,14 +280,15 @@ app.post('/api/admin/reset', adminAuth, (_req, res) => {
 });
 
 // ── Start Server ───────────────────────────────────────────────────────────────
-async function start() {
-  await initDB();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n  🎮  Mind Maze 2048 is running at http://localhost:${PORT}\n`);
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  ensureDb().then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n  🎮  Mind Maze 2048 is running at http://localhost:${PORT}\n`);
+    });
+  }).catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
   });
 }
-
-start().catch(err => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
