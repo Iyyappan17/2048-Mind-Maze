@@ -15,6 +15,8 @@
   const resetBtn     = $('reset-btn');
   const statusEl     = $('game-status');
   const playerCount  = $('player-count');
+  const scoreCount   = $('score-count');
+  const gameDuration = $('game-duration');
   const remainingEl  = $('remaining-display');
   const leaderBody   = $('leaderboard-body');
   const playerList   = $('player-list');
@@ -24,6 +26,11 @@
   const loginBtn     = $('login-btn');
   const passwordInp  = $('admin-password');
   const loginError   = $('login-error');
+  const leaderboardModal = $('leaderboard-modal');
+  const closeModal   = $('close-leaderboard-modal');
+  const closeModalBtn = $('close-leaderboard-modal-btn');
+  const viewLeaderboardBtn = $('view-leaderboard-btn');
+  const fullLeaderboardBody = $('full-leaderboard-body');
 
   let adminPass = sessionStorage.getItem('adminPassword') || '';
 
@@ -65,25 +72,72 @@
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // LEADERBOARD MODAL
+  // ═══════════════════════════════════════════════════════════════════════════
+  closeModal.addEventListener('click', () => {
+    leaderboardModal.classList.add('hidden');
+  });
+
+  closeModalBtn.addEventListener('click', () => {
+    leaderboardModal.classList.add('hidden');
+  });
+
+  viewLeaderboardBtn.addEventListener('click', async () => {
+    leaderboardModal.classList.remove('hidden');
+    // Show ALL players and their status (finished or waiting)
+    const allPlayers = await api('/api/players');
+    const playerArray = Array.isArray(allPlayers) ? allPlayers : [];
+    
+    if (playerArray.length === 0) {
+      fullLeaderboardBody.innerHTML = '<tr><td colspan="4" style="color:var(--text-dim); text-align:center;">No players yet</td></tr>';
+    } else {
+      fullLeaderboardBody.innerHTML = playerArray.map((p, i) => {
+        const rankClass = i < 3 && p.hasPlayed ? ` rank-${i + 1}` : '';
+        const score = p.score || 0;
+        const status = p.hasPlayed ? '✓ Finished' : '⏳ Waiting';
+        const statusClass = p.hasPlayed ? 'played' : 'waiting';
+        return `<tr>
+          <td class="rank${rankClass}">${i + 1}</td>
+          <td>${escapeHtml(p.username || 'Unknown')}</td>
+          <td style="font-weight:700; color:var(--accent);">${score.toLocaleString()}</td>
+          <td><span class="status-tag ${statusClass}">${status}</span></td>
+        </tr>`;
+      }).join('');
+    }
+  });
+
+  leaderboardModal.addEventListener('click', (e) => {
+    if (e.target === leaderboardModal) {
+      leaderboardModal.classList.add('hidden');
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // API HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (adminPass) headers['Authorization'] = adminPass;
 
-    const res = await fetch(path, {
-      ...opts,
-      headers: { ...headers, ...(opts.headers || {}) },
-    });
+    try {
+      const res = await fetch(path, {
+        ...opts,
+        headers: { ...headers, ...(opts.headers || {}) },
+      });
 
-    if (res.status === 401 && path.includes('/api/admin/')) {
-      adminPass = '';
-      sessionStorage.removeItem('adminPassword');
-      showLogin();
-      return { error: 'Session expired' };
+      if (res.status === 401 && path.includes('/api/admin/')) {
+        adminPass = '';
+        sessionStorage.removeItem('adminPassword');
+        showLogin();
+        return { error: 'Session expired' };
+      }
+
+      const data = await res.json();
+      return data || {};
+    } catch (err) {
+      console.error('API Error:', err);
+      return { error: 'Network error' };
     }
-
-    return res.json();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -130,6 +184,12 @@
     try {
       // Status
       const status = await api('/api/status');
+      if (!status || status.error) {
+        statusEl.className = 'status-indicator stopped';
+        statusEl.innerHTML = '<span class="dot"></span> Error';
+        remainingEl.textContent = '--:--';
+        return;
+      }
       if (status.started) {
         statusEl.className = 'status-indicator live';
         statusEl.innerHTML = '<span class="dot"></span> LIVE';
@@ -138,42 +198,47 @@
         statusEl.innerHTML = '<span class="dot"></span> Stopped';
       }
       // Remaining
-      const m = String(Math.floor(status.remaining / 60)).padStart(2, '0');
-      const s = String(status.remaining % 60).padStart(2, '0');
+      const m = String(Math.floor((status.remaining || 0) / 60)).padStart(2, '0');
+      const s = String((status.remaining || 0) % 60).padStart(2, '0');
       remainingEl.textContent = `${m}:${s}`;
-      timerInput.value = status.timer;
+      gameDuration.textContent = (status.timer || 120) + 's';
+      timerInput.value = status.timer || 120;
 
       // Player count
       const countData = await api('/api/players/count');
-      playerCount.textContent = countData.count;
+      playerCount.textContent = (countData && countData.count) || 0;
 
-      // Leaderboard
+      // Leaderboard – players who have played
       const leaders = await api('/api/leaderboard');
-      if (leaders.length === 0) {
-        leaderBody.innerHTML = '<tr><td colspan="3" style="color:var(--text-dim); text-align:center;">No scores yet</td></tr>';
+      const leaderArray = Array.isArray(leaders) ? leaders : [];
+      scoreCount.textContent = leaderArray.length;
+      if (leaderArray.length === 0) {
+        leaderBody.innerHTML = '<tr><td colspan="3" style="color:var(--text-dim); text-align:center;">No players finished yet</td></tr>';
       } else {
-        leaderBody.innerHTML = leaders.map((p, i) => {
+        leaderBody.innerHTML = leaderArray.map((p, i) => {
           const rankClass = i < 3 ? ` rank-${i + 1}` : '';
+          const score = p.score || 0;
           return `<tr>
             <td class="rank${rankClass}">${i + 1}</td>
-            <td>${escapeHtml(p.username)}</td>
-            <td style="font-weight:700; color:var(--accent);">${p.score.toLocaleString()}</td>
+            <td>${escapeHtml(p.username || 'Unknown')}</td>
+            <td style="font-weight:700; color:var(--accent);">${score.toLocaleString()}</td>
           </tr>`;
         }).join('');
       }
 
       // Player list
       const players = await api('/api/players');
-      if (players.length === 0) {
+      const playerArray = Array.isArray(players) ? players : [];
+      if (playerArray.length === 0) {
         playerList.innerHTML = '<p style="color:var(--text-dim);">No players yet</p>';
       } else {
-        playerList.innerHTML = players.map(p => `
+        playerList.innerHTML = playerArray.map(p => `
           <div class="player-item">
             <div>
-              <span class="name">${escapeHtml(p.username)}</span>
-              <span class="status-tag ${p.hasPlayed ? 'played' : 'waiting'}">${p.hasPlayed ? 'Played · ' + p.score : 'Waiting'}</span>
+              <span class="name">${escapeHtml(p.username || 'Unknown')}</span>
+              <span class="status-tag ${p.hasPlayed ? 'played' : 'waiting'}">${p.hasPlayed ? 'Played · ' + (p.score || 0).toLocaleString() : 'Waiting'}</span>
             </div>
-            <button class="btn btn-danger btn-small" onclick="removePlayer(${p.id}, '${escapeHtml(p.username)}')">✕</button>
+            <button class="btn btn-danger btn-small" onclick="removePlayer(${p.id}, '${escapeHtml(p.username || 'Unknown')}')">✕</button>
           </div>
         `).join('');
       }

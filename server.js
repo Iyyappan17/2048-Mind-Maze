@@ -89,17 +89,27 @@ async function initDB() {
   `);
   db.run(`
     CREATE TABLE IF NOT EXISTS game_state (
-      id         INTEGER PRIMARY KEY CHECK (id = 1),
-      started    INTEGER DEFAULT 0,
-      timer      INTEGER DEFAULT 120,
-      start_time INTEGER DEFAULT 0
+      id              INTEGER PRIMARY KEY CHECK (id = 1),
+      started         INTEGER DEFAULT 0,
+      timer           INTEGER DEFAULT 120,
+      start_time      INTEGER DEFAULT 0,
+      timer_duration  INTEGER DEFAULT 120
     );
   `);
+
+  // Add timer_duration column if it doesn't exist (migration for existing databases)
+  try {
+    db.run('SELECT timer_duration FROM game_state LIMIT 1');
+  } catch {
+    try {
+      db.run('ALTER TABLE game_state ADD COLUMN timer_duration INTEGER DEFAULT 120');
+    } catch {}
+  }
 
   // Ensure the single game_state row exists
   const rows = db.exec('SELECT id FROM game_state WHERE id = 1');
   if (rows.length === 0 || rows[0].values.length === 0) {
-    db.run('INSERT INTO game_state (id, started, timer, start_time) VALUES (1, 0, 120, 0)');
+    db.run('INSERT INTO game_state (id, started, timer, start_time, timer_duration) VALUES (1, 0, 120, 0, 120)');
   }
 
   saveDB();
@@ -141,9 +151,19 @@ function getState() {
 }
 
 function getRemainingTime(state) {
-  if (!state.started) return state.timer;
+  if (!state.started) {
+    // If game hasn't started yet, return the full timer
+    // But if the elapsed time since start_time is significant, game has ended
+    if (state.start_time === 0) return state.timer;
+    // Game has ended - check if we're past the duration
+    const elapsed = Math.floor((Date.now() - state.start_time) / 1000);
+    const duration = state.timer_duration || state.timer;
+    if (elapsed >= duration) return 0; // Game ended
+    return duration - elapsed;
+  }
   const elapsed = Math.floor((Date.now() - state.start_time) / 1000);
-  return Math.max(0, state.timer - elapsed);
+  const duration = state.timer_duration || state.timer; // Use duration set at game start
+  return Math.max(0, duration - elapsed);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -163,7 +183,7 @@ app.use('/api', async (req, res, next) => {
 /** POST /api/join – register a new player */
 app.post('/api/join', (req, res) => {
   const { username } = req.body;
-  if (!username || typeof username !== 'string' || username.trim().length === 0) {
+  if (username === null || username === undefined || typeof username !== 'string' || username.trim().length === 0) {
     return res.status(400).json({ error: 'Username is required.' });
   }
   const clean = username.trim().substring(0, 30);
@@ -186,6 +206,9 @@ app.post('/api/join', (req, res) => {
 /** GET /api/status – current game state for players */
 app.get('/api/status', (_req, res) => {
   const state = getState();
+  if (!state) {
+    return res.status(500).json({ error: 'Game state not initialized.' });
+  }
   const remaining = getRemainingTime(state);
 
   // Auto-end if timer has run out
@@ -214,6 +237,9 @@ app.post('/api/score', (req, res) => {
   if (player.hasPlayed) return res.status(403).json({ error: 'You have already played.' });
 
   const state = getState();
+  if (!state) {
+    return res.status(500).json({ error: 'Game state not initialized.' });
+  }
   const remaining = getRemainingTime(state);
 
   // Allow submission if game is started, or just ended (remaining 0)
@@ -240,11 +266,28 @@ app.post('/api/admin/login', (req, res) => {
   }
 });
 
+/** GET /api/admin/game-status – check if game is over */
+app.get('/api/admin/game-status', adminAuth, (_req, res) => {
+  const state = getState();
+  if (!state) {
+    return res.status(500).json({ error: 'Game state not initialized.' });
+  }
+  res.json({
+    started: !!state.started,
+    isGameOver: !state.started,
+    remaining: getRemainingTime(state)
+  });
+});
+
 /** POST /api/admin/start – start the event */
 app.post('/api/admin/start', adminAuth, (_req, res) => {
   const state = getState();
+  if (!state) {
+    return res.status(500).json({ error: 'Game state not initialized.' });
+  }
   if (state.started) return res.status(400).json({ error: 'Game already started.' });
-  runSQL('UPDATE game_state SET started = 1, start_time = ? WHERE id = 1', [Date.now()]);
+  // Capture the timer duration at start time so it won't change if admin adjusts timer later
+  runSQL('UPDATE game_state SET started = 1, start_time = ?, timer_duration = ? WHERE id = 1', [Date.now(), state.timer]);
   res.json({ success: true });
 });
 
@@ -265,9 +308,15 @@ app.post('/api/admin/timer', adminAuth, (req, res) => {
   res.json({ success: true, timer: t });
 });
 
-/** GET /api/leaderboard – top 20 (admin view) */
+/** GET /api/leaderboard – all players who played, ordered by score (admin view) */
 app.get('/api/leaderboard', (_req, res) => {
-  const rows = queryAll('SELECT * FROM players WHERE hasPlayed = 1 ORDER BY score DESC LIMIT 20');
+  const rows = queryAll('SELECT * FROM players WHERE hasPlayed = 1 ORDER BY score DESC, username ASC');
+  res.json(rows);
+});
+
+/** GET /api/leaderboard/finished – only players who finished the game */
+app.get('/api/leaderboard/finished', (_req, res) => {
+  const rows = queryAll('SELECT * FROM players WHERE hasPlayed = 1 ORDER BY score DESC, username ASC');
   res.json(rows);
 });
 
@@ -293,7 +342,7 @@ app.delete('/api/admin/player/:id', adminAuth, (req, res) => {
 /** POST /api/admin/reset – reset entire event */
 app.post('/api/admin/reset', adminAuth, (_req, res) => {
   runSQL('DELETE FROM players');
-  runSQL('UPDATE game_state SET started = 0, timer = 120, start_time = 0 WHERE id = 1');
+  runSQL('UPDATE game_state SET started = 0, timer = 120, start_time = 0, timer_duration = 120 WHERE id = 1');
   res.json({ success: true });
 });
 

@@ -49,19 +49,22 @@
       <!-- Timer Settings -->
       <div class="glass-card admin-card">
         <h3>⏱ Timer Settings</h3>
+        <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:12px;">
+          Game Duration: <strong id="game-duration">120s</strong> | Remaining: <strong id="remaining-display">--:--</strong>
+        </p>
         <div class="timer-input-group">
           <input type="number" id="timer-input" value="120" min="10" max="3600" />
           <span style="color:var(--text-dim);">seconds</span>
           <button class="btn btn-secondary btn-small" id="set-timer-btn">Set</button>
         </div>
+        <p style="color:var(--text-dim); font-size:0.75rem; margin-top:8px;">
+          ⓘ Timer can only be changed before game starts
+        </p>
         <div class="btn-group" style="margin-top:12px;">
           <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=60">60s</button>
           <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=120">120s</button>
           <button class="btn btn-secondary btn-small" onclick="document.getElementById('timer-input').value=300">300s</button>
         </div>
-        <p style="margin-top:12px; color:var(--text-dim); font-size:0.85rem;">
-          Remaining: <strong id="remaining-display">--:--</strong>
-        </p>
       </div>
 
       <!-- Player Count -->
@@ -81,15 +84,21 @@
 
       <!-- Leaderboard -->
       <div class="glass-card admin-card" style="grid-column: 1 / -1;">
-        <h3>🏆 Leaderboard – Top 20</h3>
-        <table class="leaderboard-table">
-          <thead>
-            <tr><th>#</th><th>Player</th><th>Score</th></tr>
-          </thead>
-          <tbody id="leaderboard-body">
-            <tr><td colspan="3" style="color:var(--text-dim); text-align:center;">No scores yet</td></tr>
-          </tbody>
-        </table>
+        <h3>🏆 Leaderboard – Final Results</h3>
+        <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:12px;">
+          <strong id="score-count">0</strong> players who finished playing
+        </p>
+        <div style="height: 400px; overflow-y: auto; border-radius: 8px;">
+          <table class="leaderboard-table">
+            <thead style="position: sticky; top: 0;">
+              <tr><th>#</th><th>Player</th><th>Score</th></tr>
+            </thead>
+            <tbody id="leaderboard-body">
+              <tr><td colspan="3" style="color:var(--text-dim); text-align:center;">No scores yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <button class="btn btn-primary btn-small" id="view-leaderboard-btn" style="margin-top:12px; width:100%;">📊 View All Players Standings</button>
       </div>
 
       <!-- Player List -->
@@ -100,6 +109,29 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ═══════════ LEADERBOARD MODAL ═══════════ -->
+  <div id="leaderboard-modal" class="leaderboard-modal hidden">
+    <div class="leaderboard-modal-content">
+      <div class="modal-header">
+        <h2 style="margin:0;">🏆 Full Leaderboard – All Players</h2>
+        <button class="btn-close" id="close-leaderboard-modal">&times;</button>
+      </div>
+      <div style="max-height: 600px; overflow-y: auto;">
+        <table class="leaderboard-table full-leaderboard">
+          <thead style="position: sticky; top: 0;">
+            <tr><th>#</th><th>Player</th><th>Score</th><th>Status</th></tr>
+          </thead>
+          <tbody id="full-leaderboard-body">
+            <tr><td colspan="4" style="color:var(--text-dim); text-align:center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="close-leaderboard-modal-btn">Close</button>
+      </div>
     </div>
   </div>
 

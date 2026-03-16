@@ -174,20 +174,53 @@
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   let remainingTime = 0;
+  let lastServerRefresh = 0;
+  let displayUpdateId = null;
+  let gameEndTimer = null;
+  
   function startTimer(seconds) {
     remainingTime = seconds;
+    lastServerRefresh = Date.now();
     updateTimerDisplay();
+    
+    // Calculate when game should end on client side (with buffer)
+    const gameEndTime = Date.now() + (seconds * 1000) + 500; // Add 500ms buffer
+    
+    // Smooth display updates every 100ms
+    if (displayUpdateId) clearInterval(displayUpdateId);
+    displayUpdateId = setInterval(() => {
+      if (gameActive && isEvent) {
+        updateTimerDisplay();
+      }
+    }, 100);
+    
+    // Client-side safety timer - ensure game ends even if server polling fails
+    if (gameEndTimer) clearTimeout(gameEndTimer);
+    gameEndTimer = setTimeout(() => {
+      if (gameActive && isEvent) {
+        console.log('Client-side game end timeout triggered');
+        clearInterval(timerPollId);
+        clearInterval(displayUpdateId);
+        endEventGame();
+      }
+    }, seconds * 1000 + 1000); // Add 1 second buffer
+    
+    // Server synchronization every 1 second
     timerPollId = setInterval(async () => {
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
         if (!data.started || data.ended) {
           clearInterval(timerPollId);
+          clearInterval(displayUpdateId);
+          if (gameEndTimer) clearTimeout(gameEndTimer);
           endEventGame();
           return;
         }
+        // Sync with server
         remainingTime = data.remaining;
-        updateTimerDisplay();
+        lastServerRefresh = Date.now();
+        
         if (remainingTime <= 10 && remainingTime > 0) {
           document.body.classList.add('red-flash');
           timerDisplay.classList.add('warning');
@@ -195,14 +228,21 @@
         }
         if (remainingTime <= 0) {
           clearInterval(timerPollId);
+          clearInterval(displayUpdateId);
+          if (gameEndTimer) clearTimeout(gameEndTimer);
           endEventGame();
         }
-      } catch {}
+      } catch (err) {
+        console.error('Status polling error:', err);
+      }
     }, 1000);
   }
   function updateTimerDisplay() {
-    const m = String(Math.floor(remainingTime / 60)).padStart(2, '0');
-    const s = String(remainingTime % 60).padStart(2, '0');
+    // Calculate current remaining time with client-side interpolation
+    const elapsed = Math.floor((Date.now() - lastServerRefresh) / 1000);
+    const displayTime = Math.max(0, remainingTime - elapsed);
+    const m = String(Math.floor(displayTime / 60)).padStart(2, '0');
+    const s = String(displayTime % 60).padStart(2, '0');
     timerDisplay.textContent = `⏱ ${m}:${s}`;
   }
 
@@ -212,19 +252,47 @@
     document.body.classList.remove('red-flash');
     timerDisplay.classList.remove('warning');
     clearInterval(timerPollId);
+    clearInterval(displayUpdateId);
 
     if (!hasSubmitted) {
       hasSubmitted = true;
-      try {
-        await fetch('/api/score', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerId, score }),
-        });
-      } catch {}
+      let submitted = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      // Try to submit score with retry logic
+      while (!submitted && attempts < maxAttempts) {
+        try {
+          const res = await fetch('/api/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ playerId, score }),
+          });
+          
+          const data = await res.json();
+          if (res.ok && data.success) {
+            submitted = true;
+            console.log('Score submitted successfully:', score);
+          } else {
+            console.error('Score submission error:', data.error);
+            attempts++;
+            if (attempts < maxAttempts) {
+              // Wait before retrying
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+        } catch (err) {
+          console.error('Score submission fetch error:', err);
+          attempts++;
+          if (attempts < maxAttempts) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
     }
     sfx.gameOver();
-    finalScoreEl.textContent = score;
+    finalScoreEl.textContent = score.toLocaleString();
     showScreen('gameover');
   }
 

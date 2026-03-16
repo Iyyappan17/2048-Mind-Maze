@@ -366,11 +366,23 @@ body {
    ADMIN PANEL – admin.html
    ═══════════════════════════════════════════════════════════════════════════════ */
 .admin-page {
-  max-width: 900px;
-  padding: 24px;
+  max-width: 1100px;
+  padding-top: 60px;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 24px;
   margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
-.admin-page .logo { margin-bottom: 8px; }
+.admin-page .logo { 
+  text-align: center;
+  margin-bottom: 8px; 
+}
+.admin-page .logo-sub {
+  text-align: center;
+}
 
 .admin-grid {
   display: grid;
@@ -378,9 +390,13 @@ body {
   gap: 20px;
   width: 100%;
   margin-top: 12px;
+  align-items: start;
 }
 .admin-card {
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 .admin-card h3 {
   font-size: 1rem;
@@ -471,6 +487,24 @@ body {
 .leaderboard-table .rank-1 { color: #ffe600; }
 .leaderboard-table .rank-2 { color: #c0c0c0; }
 .leaderboard-table .rank-3 { color: #cd7f32; }
+
+.leaderboard-table .status-tag {
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  display: inline-block;
+}
+.leaderboard-table .status-tag.played {
+  background: rgba(0,229,255,0.1);
+  color: var(--accent);
+  border: 1px solid rgba(0,229,255,0.2);
+}
+.leaderboard-table .status-tag.waiting {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-dim);
+  border: 1px solid rgba(255,255,255,0.1);
+}
 
 /* ── Player List (Admin) ───────────────────────────────────────────────────────── */
 .player-list {
@@ -698,4 +732,86 @@ body {
 .login-card .btn {
   width: 100%;
   margin-top: 20px;
+}
+
+/* ── Leaderboard Modal ─────────────────────────────────────────────────────────── */
+.leaderboard-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.leaderboard-modal.hidden {
+  display: none;
+}
+.leaderboard-modal-content {
+  background: var(--glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.modal-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+.btn-close:hover {
+  color: var(--accent);
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.modal-footer .btn {
+  margin: 0;
+}
+
+/* Full leaderboard table styling */
+.leaderboard-table.full-leaderboard {
+  width: 100%;
+}
+.leaderboard-table.full-leaderboard th,
+.leaderboard-table.full-leaderboard td {
+  padding: 12px 14px;
+  text-align: left;
+}
+.leaderboard-table.full-leaderboard .rank {
+  min-width: 50px;
 }
